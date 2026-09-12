@@ -1,0 +1,11 @@
+<resources>
+    <!-- Compose owns all real theming (ui/theme/Theme.kt); this base theme
+         just sets the window background/status bar so the launch frame
+         before Compose takes over isn't a flash of white. -->
+    <style name="Theme.EstudioReformer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#161826</item>
+        <item name="android:statusBarColor">#161826</item>
+        <item name="android:navigationBarColor">#161826</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
