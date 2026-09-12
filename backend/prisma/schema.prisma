@@ -1,0 +1,174 @@
+// Estudio Reformer — data model.
+//
+// Design notes (kept close to the Claude Design prototype's product rules,
+// reshaped into something a real backend can own):
+//  - A member's "bono" never expires. It is a single running credit balance
+//    (`Bono.remaining`), topped up by +8 whenever the studio renews it — not
+//    a per-cycle allotment that resets. `cycleLabel` is purely informational
+//    (which monthly renewal round the member is caught up to), used to know
+//    who is "pendiente de renovar" for the current cycle.
+//  - Each Booking is stamped with the BonoRenewal that was active when it
+//    was made, so the admin "ficha" view can group historical sessions by
+//    the bono/month that paid for them — same idea as the prototype's
+//    "histórico de bonos", derived from real rows instead of simulated.
+//  - Class slots ("franjas") are recurring weekly templates the admin edits
+//    once; concrete ClassSession rows are materialized lazily per date the
+//    first time anyone touches that date, so capacity edits and bookings
+//    have somewhere durable to attach without pre-generating years of rows.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum type, so Prisma's `sqlite` connector doesn't
+// support `enum` in the schema — these are plain Strings, constrained to
+// the values noted above each field, and validated at the API boundary
+// (lib/validate.ts) rather than by the database.
+
+model User {
+  id                String        @id @default(cuid())
+  name              String
+  email             String        @unique
+  phone             String
+  passwordHash      String
+  role              String        @default("MEMBER") // "MEMBER" | "ADMIN"
+  status            String        @default("PENDING") // "PENDING" | "ACTIVE" | "REJECTED"
+  // Access-request questionnaire (asked at sign-up, shown on the admin ficha):
+  experienciaPrevia Boolean       @default(false)
+  patologia         Boolean       @default(false)
+  patologiaTexto    String?
+  createdAt         DateTime      @default(now())
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+
+  bono              Bono?
+  bookings          Booking[]
+  waitlistEntries   WaitlistEntry[]
+  offers            Offer[]
+  renewals          BonoRenewal[]
+  notifications     Notification[]
+}
+
+model ClassTemplate {
+  id         String   @id @default(cuid())
+  // 0 = Sunday … 6 = Saturday (JS Date#getDay convention). No templates on a
+  // given day == the studio is closed that day (Sundays, by default).
+  dayOfWeek  Int
+  time       String
+  className  String
+  coachName  String
+  capacity   Int      @default(2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sessions   ClassSession[]
+}
+
+model ClassSession {
+  id          String   @id @default(cuid())
+  templateId  String
+  template    ClassTemplate @relation(fields: [templateId], references: [id])
+  date        String   // "YYYY-MM-DD"
+  time        String
+  className   String
+  coachName   String
+  capacity    Int
+  createdAt   DateTime @default(now())
+
+  bookings    Booking[]
+  waitlist    WaitlistEntry[]
+  offers      Offer[]
+
+  @@unique([templateId, date])
+  @@index([date])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  sessionId     String
+  session       ClassSession  @relation(fields: [sessionId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  status        String        @default("CONFIRMED") // "CONFIRMED" | "CANCELLED"
+  createdAt     DateTime      @default(now())
+  cancelledAt   DateTime?
+  // Which renewal round paid for this session — null only for legacy/edge rows.
+  bonoRenewalId String?
+  bonoRenewal   BonoRenewal?  @relation(fields: [bonoRenewalId], references: [id])
+
+  @@index([sessionId, status])
+  @@index([userId, status])
+}
+
+model WaitlistEntry {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id])
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  position  Int
+  createdAt DateTime     @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, position])
+}
+
+model Offer {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  status    String      @default("PENDING") // "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED"
+  createdAt DateTime    @default(now())
+  expiresAt DateTime
+
+  @@index([userId, status])
+  @@index([sessionId, status])
+}
+
+model Bono {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  remaining  Int      @default(0)
+  cycleLabel String   @default("Sin bono")
+  updatedAt  DateTime @updatedAt
+}
+
+model BonoRenewal {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  cycleLabel    String
+  sessionsAdded Int       @default(8)
+  createdAt     DateTime  @default(now())
+
+  bookings      Booking[]
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id])
+  channel   String              // "APP" | "WHATSAPP"
+  message   String
+  createdAt DateTime            @default(now())
+}
+
+// Singleton row (id always 1) holding studio-wide settings.
+model AppSettings {
+  id                      Int     @id @default(1)
+  studioName              String  @default("Estudio Reformer")
+  location                String  @default("Enguera (Valencia)")
+  currentCycleLabel       String  @default("Septiembre 2026")
+  nextCycleLabel          String  @default("Octubre 2026")
+  reminderEnabled         Boolean @default(true)
+  reminderChannelApp      Boolean @default(true)
+  reminderChannelWhatsapp Boolean @default(true)
+}
