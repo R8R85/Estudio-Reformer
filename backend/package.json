@@ -1,8 +1,8 @@
 {
-  "name": "nexo-backend",
+  "name": "nexoestudio-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "NEXO API — multi-tenant agenda, bonos and admin backend for pilates reformer studios.",
+  "description": "NEXOESTUDIO API — multi-tenant agenda, bonos and admin backend for pilates reformer studios.",
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",

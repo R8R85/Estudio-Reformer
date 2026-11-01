@@ -120,18 +120,18 @@ async function seedTenant(opts: {
 }
 
 async function main() {
-  console.log('Seeding NEXO (2 tenants, para probar aislamiento)…');
+  console.log('Seeding NEXOESTUDIO (2 tenants, para probar aislamiento)…');
 
   // ── Platform admin — the vendor's own operator, not scoped to any tenant.
   // tenantId: null isn't covered by the @@unique([tenantId, email]) index
   // (NULL never equals NULL in a unique constraint), so this is a plain
   // find-or-create rather than an upsert.
-  const platformExists = await prisma.user.findFirst({ where: { tenantId: null, email: 'platform@nexo.app' } });
+  const platformExists = await prisma.user.findFirst({ where: { tenantId: null, email: 'platform@nexoestudio.app' } });
   if (!platformExists) {
     const platformPasswordHash = await bcrypt.hash('platform123', 10);
     await prisma.user.create({
       data: {
-        tenantId: null, name: 'Equipo NEXO', email: 'platform@nexo.app', phone: '600 00 00 01',
+        tenantId: null, name: 'Equipo NexoEstudio', email: 'platform@nexoestudio.app', phone: '600 00 00 01',
         passwordHash: platformPasswordHash, role: 'PLATFORM_ADMIN', status: 'ACTIVE', approvedAt: new Date(),
       },
     });
@@ -210,7 +210,7 @@ async function main() {
   await bookFor(t2.tenantId, marc, addDays(today, -2), '19:30', marcRenewal?.id ?? null);
 
   console.log('Seed completada.');
-  console.log('Plataforma: platform@nexo.app / platform123');
+  console.log('Plataforma: platform@nexoestudio.app / platform123');
   console.log('—');
   console.log('Estudio 1 · código ENGUERA · Estudio Reformer (Enguera, Valencia)');
   console.log('  Admin: admin@estudioreformer.es / admin123');

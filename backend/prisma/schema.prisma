@@ -1,7 +1,7 @@
-// NEXO — data model.
+// NEXOESTUDIO — data model.
 //
-// "NEXO" is the name of the software itself, as distinct from "Estudio
-// Reformer", which is one *customer* (a tenant) running it.
+// "NEXOESTUDIO" is the name of the software itself, as distinct from
+// "Estudio Reformer", which is one *customer* (a tenant) running it.
 //
 // Multi-tenant design notes:
 //  - Every row that belongs to a studio carries its own `tenantId`, even

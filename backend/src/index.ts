@@ -65,5 +65,5 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
   // eslint-disable-next-line no-console
-  console.log(`NEXO API escuchando en http://localhost:${port}`);
+  console.log(`NEXOESTUDIO API escuchando en http://localhost:${port}`);
 });
