@@ -1,10 +1,10 @@
-# Reformer OS
+# NEXO
 
-> "Reformer OS" is a working/placeholder name for the **software itself**
-> (the vendor's product), as distinct from "Estudio Reformer", which is one
-> *customer* (a tenant) running it. Nothing in the code depends on this
-> string — rename it (repo, package.json `name` fields, app display names)
-> once a real brand is chosen.
+> "NEXO" is the name of the **software itself** (the vendor's product), as
+> distinct from "Estudio Reformer", which is one *customer* (a tenant)
+> running it. The logo (a solid node linked to an open ring — a studio
+> joining the platform) lives in the branding artifact shared alongside this
+> project; export it to `project/assets/` once it's finalized as real files.
 
 A multi-tenant booking app for Pilates reformer studios: members book
 sessions from a weekly agenda against an 8-session bono (pack) that never
@@ -143,7 +143,7 @@ Test accounts (also printed by the seed script):
 
 | Studio code | Role      | Email                          | Password     |
 |-------------|-----------|---------------------------------|---------------|
-| —           | Platform  | platform@reformeros.dev         | platform123   |
+| —           | Platform  | platform@nexo.app               | platform123   |
 | `ENGUERA`   | Admin     | admin@estudioreformer.es        | admin123      |
 | `ENGUERA`   | Member    | lucia.ferrer@correo.com         | socia123      |
 | `VALENCIA`  | Admin     | admin@pilatesvalencia.es        | admin123      |
@@ -205,8 +205,8 @@ ask for the studio code — see `ui/auth/LoginScreen.kt` and
 Everything below is a deliberate scope cut for *this* build, not a bug — see
 the monetization/go-to-market artifact shared alongside this project for the
 full punch list of what else is needed before selling this to real studios
-(a registered brand name, production hosting + domain + HTTPS, real Apple/
-Google developer accounts and signed store builds, a live Stripe account,
+(registering "NEXO" as a trademark, production hosting + domain + HTTPS, real
+Apple/Google developer accounts and signed store builds, a live Stripe account,
 legal/fiscal registration, a GDPR health-data DPA per tenant, etc.) — none of
 which can be done from inside this environment.
 

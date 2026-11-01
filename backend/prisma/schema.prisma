@@ -1,9 +1,7 @@
-// Reformer OS — data model.
+// NEXO — data model.
 //
-// "Reformer OS" is a working name for the software itself, as distinct from
-// "Estudio Reformer", which is one *customer* (a tenant) running it. Find/
-// replace this name once a real brand is registered — nothing in the schema
-// depends on the string.
+// "NEXO" is the name of the software itself, as distinct from "Estudio
+// Reformer", which is one *customer* (a tenant) running it.
 //
 // Multi-tenant design notes:
 //  - Every row that belongs to a studio carries its own `tenantId`, even
