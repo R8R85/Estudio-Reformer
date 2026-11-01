@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import { getSettings } from './settings';
+import { getTenantSettings } from './settings';
 import { notifyBoth } from './notifications';
 
 const OFFER_WINDOW_MINUTES = 30;
@@ -21,26 +21,27 @@ async function reindexWaitlist(sessionId: string) {
  *  an admin releases a place): offers the freed slot to the head of that
  *  session's waitlist, with a 30-minute window to accept before it cascades
  *  to the next person in line. */
-export async function cascadeToNextWaitlisted(sessionId: string) {
+export async function cascadeToNextWaitlisted(tenantId: string, sessionId: string) {
   const head = await prisma.waitlistEntry.findFirst({
-    where: { sessionId },
+    where: { tenantId, sessionId },
     orderBy: { position: 'asc' },
   });
   if (!head) return null;
 
   const session = await prisma.classSession.findUniqueOrThrow({ where: { id: sessionId } });
-  const settings = await getSettings();
+  const settings = await getTenantSettings(tenantId);
   const expiresAt = new Date(Date.now() + OFFER_WINDOW_MINUTES * 60000);
 
   const offer = await prisma.$transaction(async (tx) => {
     await tx.waitlistEntry.delete({ where: { id: head.id } });
     return tx.offer.create({
-      data: { sessionId, userId: head.userId, expiresAt },
+      data: { tenantId, sessionId, userId: head.userId, expiresAt },
     });
   });
   await reindexWaitlist(sessionId);
 
   await notifyBoth(
+    tenantId,
     head.userId,
     `Se ha liberado una plaza · ${session.date} ${session.time} ${session.className}. Tienes ${OFFER_WINDOW_MINUTES} min para confirmarla.`,
     { app: settings.reminderChannelApp, whatsapp: settings.reminderChannelWhatsapp }
@@ -53,20 +54,20 @@ export async function cascadeToNextWaitlisted(sessionId: string) {
  *  cascades each to the next waitlisted person. Called lazily on every read
  *  that would otherwise show a stale "pending" offer — there's no
  *  background scheduler in this build. */
-export async function expireStaleOffers(userId?: string) {
+export async function expireStaleOffers(tenantId: string, userId?: string) {
   const stale = await prisma.offer.findMany({
-    where: { status: 'PENDING', expiresAt: { lt: new Date() }, ...(userId ? { userId } : {}) },
+    where: { tenantId, status: 'PENDING', expiresAt: { lt: new Date() }, ...(userId ? { userId } : {}) },
   });
   for (const o of stale) {
     await prisma.offer.update({ where: { id: o.id }, data: { status: 'EXPIRED' } });
-    await cascadeToNextWaitlisted(o.sessionId);
+    await cascadeToNextWaitlisted(tenantId, o.sessionId);
   }
 }
 
-export async function getPendingOffer(userId: string) {
-  await expireStaleOffers(userId);
+export async function getPendingOffer(tenantId: string, userId: string) {
+  await expireStaleOffers(tenantId, userId);
   return prisma.offer.findFirst({
-    where: { userId, status: 'PENDING' },
+    where: { tenantId, userId, status: 'PENDING' },
     include: { session: true },
     orderBy: { createdAt: 'desc' },
   });

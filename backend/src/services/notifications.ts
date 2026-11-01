@@ -11,17 +11,17 @@ import { prisma } from '../db';
  * exactly what to plug in.
  *
  * Until then, every send lands as a row in `Notification` (visible via
- * GET /admin/notifications) and a console line, so the rest of the app's
- * logic (who gets notified, when, through which channels) is fully wired
- * and easy to verify.
+ * GET /admin/notifications, scoped to that admin's own tenant) and a
+ * console line, so the rest of the app's logic (who gets notified, when,
+ * through which channels) is fully wired and easy to verify.
  */
-export async function notify(userId: string, channel: 'APP' | 'WHATSAPP', message: string) {
-  await prisma.notification.create({ data: { userId, channel, message } });
+export async function notify(tenantId: string, userId: string, channel: 'APP' | 'WHATSAPP', message: string) {
+  await prisma.notification.create({ data: { tenantId, userId, channel, message } });
   // eslint-disable-next-line no-console
-  console.log(`[notify:${channel}] -> user ${userId}: ${message}`);
+  console.log(`[notify:${channel}] tenant ${tenantId} -> user ${userId}: ${message}`);
 }
 
-export async function notifyBoth(userId: string, message: string, settings: { app: boolean; whatsapp: boolean }) {
-  if (settings.app) await notify(userId, 'APP', message);
-  if (settings.whatsapp) await notify(userId, 'WHATSAPP', message);
+export async function notifyBoth(tenantId: string, userId: string, message: string, settings: { app: boolean; whatsapp: boolean }) {
+  if (settings.app) await notify(tenantId, userId, 'APP', message);
+  if (settings.whatsapp) await notify(tenantId, userId, 'WHATSAPP', message);
 }

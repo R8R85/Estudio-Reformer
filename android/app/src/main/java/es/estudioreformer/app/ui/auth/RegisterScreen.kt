@@ -32,6 +32,7 @@ fun RegisterScreen() {
     val session = LocalSession.current
     val scope = rememberCoroutineScope()
 
+    var studioCode by remember { mutableStateOf(session.lastStudioCode()) }
     var nombre by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var tel by remember { mutableStateOf("") }
@@ -42,7 +43,7 @@ fun RegisterScreen() {
     var isSubmitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val incompleto = nombre.isEmpty() || email.isEmpty() || tel.isEmpty() || password.length < 6
+    val incompleto = studioCode.isEmpty() || nombre.isEmpty() || email.isEmpty() || tel.isEmpty() || password.length < 6
 
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp)) {
         Text("Solicitar acceso", style = Theme.heading(20), color = Theme.text)
@@ -53,6 +54,11 @@ fun RegisterScreen() {
         )
         Spacer(Modifier.height(14.dp))
 
+        LabeledField(
+            label = "Código de estudio", value = studioCode, onValueChange = { studioCode = it.uppercase() },
+            placeholder = "ENGUERA", note = "Te lo da el estudio al que te apuntas.",
+        )
+        Spacer(Modifier.height(10.dp))
         LabeledField(label = "Nombre y apellidos", value = nombre, onValueChange = { nombre = it }, placeholder = "Alba Marí")
         Spacer(Modifier.height(10.dp))
         LabeledField(label = "Email", value = email, onValueChange = { email = it }, placeholder = "alba@correo.com", keyboardType = KeyboardType.Email)
@@ -96,7 +102,7 @@ fun RegisterScreen() {
                 error = null
                 scope.launch {
                     try {
-                        session.register(nombre, email, tel, password, experienciaPrevia, patologia, patologiaTexto)
+                        session.register(studioCode.trim(), nombre, email, tel, password, experienciaPrevia, patologia, patologiaTexto)
                     } catch (e: ApiException) {
                         error = e.message
                     } catch (e: Exception) {

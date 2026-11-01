@@ -57,14 +57,15 @@ export function diaLabel(date: string): string {
  *  edit a template's time/name/capacity going forward without rewriting
  *  history for dates whose sessions (and any bookings on them) already
  *  exist. */
-export async function ensureSessionsForDate(date: string) {
+export async function ensureSessionsForDate(tenantId: string, date: string) {
   const dow = dayOfWeekFor(date);
-  const templates = await prisma.classTemplate.findMany({ where: { dayOfWeek: dow } });
+  const templates = await prisma.classTemplate.findMany({ where: { tenantId, dayOfWeek: dow } });
   for (const t of templates) {
     await prisma.classSession.upsert({
       where: { templateId_date: { templateId: t.id, date } },
       update: {},
       create: {
+        tenantId,
         templateId: t.id,
         date,
         time: t.time,
@@ -76,10 +77,10 @@ export async function ensureSessionsForDate(date: string) {
   }
 }
 
-export async function getSessionsForDate(date: string) {
-  await ensureSessionsForDate(date);
+export async function getSessionsForDate(tenantId: string, date: string) {
+  await ensureSessionsForDate(tenantId, date);
   return prisma.classSession.findMany({
-    where: { date },
+    where: { tenantId, date },
     orderBy: { time: 'asc' },
     include: {
       bookings: { where: { status: 'CONFIRMED' }, include: { user: true } },

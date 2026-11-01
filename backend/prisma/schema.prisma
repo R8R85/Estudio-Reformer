@@ -1,7 +1,30 @@
-// Estudio Reformer — data model.
+// Reformer OS — data model.
 //
-// Design notes (kept close to the Claude Design prototype's product rules,
-// reshaped into something a real backend can own):
+// "Reformer OS" is a working name for the software itself, as distinct from
+// "Estudio Reformer", which is one *customer* (a tenant) running it. Find/
+// replace this name once a real brand is registered — nothing in the schema
+// depends on the string.
+//
+// Multi-tenant design notes:
+//  - Every row that belongs to a studio carries its own `tenantId`, even
+//    where it could be inferred through a join (Booking could be reached via
+//    ClassSession, for instance). This is deliberate: every tenant-scoped
+//    query filters on a column it already has, rather than trusting a chain
+//    of joins to stay correct forever. Defense in depth against the one bug
+//    category that actually matters here — one studio's data leaking into
+//    another's.
+//  - `User.role` gained a third value, "PLATFORM_ADMIN": the software
+//    vendor's own operators, who manage *tenants* rather than belonging to
+//    one. Their `tenantId` is null — the only null allowed in that column.
+//  - What used to be the single `AppSettings` row is now one column group
+//    per `Tenant`: studio name/location, reminder settings, and the
+//    cycle-label pair all move from "the one studio" to "this studio".
+//  - Billing fields on `Tenant` are a Stripe Billing scaffold (see
+//    services/billing.ts) — they work end-to-end against Stripe's test mode
+//    today; production needs real API keys, which only the account owner
+//    can provide.
+//
+// Design notes carried over from the single-tenant version:
 //  - A member's "bono" never expires. It is a single running credit balance
 //    (`Bono.remaining`), topped up by +8 whenever the studio renews it — not
 //    a per-cycle allotment that resets. `cycleLabel` is purely informational
@@ -9,12 +32,10 @@
 //    who is "pendiente de renovar" for the current cycle.
 //  - Each Booking is stamped with the BonoRenewal that was active when it
 //    was made, so the admin "ficha" view can group historical sessions by
-//    the bono/month that paid for them — same idea as the prototype's
-//    "histórico de bonos", derived from real rows instead of simulated.
+//    the bono/month that paid for them.
 //  - Class slots ("franjas") are recurring weekly templates the admin edits
 //    once; concrete ClassSession rows are materialized lazily per date the
-//    first time anyone touches that date, so capacity edits and bookings
-//    have somewhere durable to attach without pre-generating years of rows.
+//    first time anyone touches that date.
 
 generator client {
   provider = "prisma-client-js"
@@ -30,13 +51,55 @@ datasource db {
 // the values noted above each field, and validated at the API boundary
 // (lib/validate.ts) rather than by the database.
 
+model Tenant {
+  id                      String    @id @default(cuid())
+  // Short, memorable "código de estudio" — entered at sign-up and login so
+  // one shared app/API can serve every studio without a subdomain per client.
+  code                    String    @unique
+  name                    String
+  location                String    @default("")
+  currentCycleLabel       String    @default("Mes actual")
+  nextCycleLabel          String    @default("Mes siguiente")
+  reminderEnabled         Boolean   @default(true)
+  reminderChannelApp      Boolean   @default(true)
+  reminderChannelWhatsapp Boolean   @default(true)
+
+  // Plan / billing — see services/billing.ts. Limits are read from here
+  // instead of being hardcoded, so upgrading a tenant's plan is a row update.
+  plan                 String    @default("TRIAL") // "TRIAL" | "SOLO" | "ESTUDIO" | "CADENA"
+  planMemberLimit      Int       @default(60)
+  planWhatsappEnabled  Boolean   @default(false)
+  planMultiSede        Boolean   @default(false)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String    @default("trialing") // "trialing" | "active" | "past_due" | "canceled"
+  trialEndsAt          DateTime?
+  suspendedAt          DateTime?
+
+  createdAt DateTime @default(now())
+
+  users          User[]
+  classTemplates ClassTemplate[]
+  classSessions  ClassSession[]
+  bookings       Booking[]
+  waitlist       WaitlistEntry[]
+  offers         Offer[]
+  bonos          Bono[]
+  renewals       BonoRenewal[]
+  notifications  Notification[]
+}
+
 model User {
   id                String        @id @default(cuid())
+  // Null only for role "PLATFORM_ADMIN" — the vendor's own operators, who
+  // manage tenants rather than belonging to one.
+  tenantId          String?
+  tenant            Tenant?       @relation(fields: [tenantId], references: [id])
   name              String
-  email             String        @unique
+  email             String
   phone             String
   passwordHash      String
-  role              String        @default("MEMBER") // "MEMBER" | "ADMIN"
+  role              String        @default("MEMBER") // "MEMBER" | "ADMIN" | "PLATFORM_ADMIN"
   status            String        @default("PENDING") // "PENDING" | "ACTIVE" | "REJECTED"
   // Access-request questionnaire (asked at sign-up, shown on the admin ficha):
   experienciaPrevia Boolean       @default(false)
@@ -52,10 +115,19 @@ model User {
   offers            Offer[]
   renewals          BonoRenewal[]
   notifications     Notification[]
+
+  // Email only has to be unique *within* a tenant — the same person could in
+  // principle be a member of two different studios. Platform admins (null
+  // tenantId) aren't covered by this constraint; there are only ever a
+  // handful, managed by hand.
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
 }
 
 model ClassTemplate {
   id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
   // 0 = Sunday … 6 = Saturday (JS Date#getDay convention). No templates on a
   // given day == the studio is closed that day (Sundays, by default).
   dayOfWeek  Int
@@ -67,10 +139,14 @@ model ClassTemplate {
   updatedAt  DateTime @updatedAt
 
   sessions   ClassSession[]
+
+  @@index([tenantId, dayOfWeek])
 }
 
 model ClassSession {
   id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
   templateId  String
   template    ClassTemplate @relation(fields: [templateId], references: [id])
   date        String   // "YYYY-MM-DD"
@@ -85,11 +161,13 @@ model ClassSession {
   offers      Offer[]
 
   @@unique([templateId, date])
-  @@index([date])
+  @@index([tenantId, date])
 }
 
 model Booking {
   id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
   sessionId     String
   session       ClassSession  @relation(fields: [sessionId], references: [id])
   userId        String
@@ -101,12 +179,14 @@ model Booking {
   bonoRenewalId String?
   bonoRenewal   BonoRenewal?  @relation(fields: [bonoRenewalId], references: [id])
 
-  @@index([sessionId, status])
-  @@index([userId, status])
+  @@index([tenantId, sessionId, status])
+  @@index([tenantId, userId, status])
 }
 
 model WaitlistEntry {
   id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
   sessionId String
   session   ClassSession @relation(fields: [sessionId], references: [id])
   userId    String
@@ -115,11 +195,13 @@ model WaitlistEntry {
   createdAt DateTime     @default(now())
 
   @@unique([sessionId, userId])
-  @@index([sessionId, position])
+  @@index([tenantId, sessionId, position])
 }
 
 model Offer {
   id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
   sessionId String
   session   ClassSession @relation(fields: [sessionId], references: [id])
   userId    String
@@ -128,21 +210,27 @@ model Offer {
   createdAt DateTime    @default(now())
   expiresAt DateTime
 
-  @@index([userId, status])
-  @@index([sessionId, status])
+  @@index([tenantId, userId, status])
+  @@index([tenantId, sessionId, status])
 }
 
 model Bono {
   id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
   userId     String   @unique
   user       User     @relation(fields: [userId], references: [id])
   remaining  Int      @default(0)
   cycleLabel String   @default("Sin bono")
   updatedAt  DateTime @updatedAt
+
+  @@index([tenantId, cycleLabel])
 }
 
 model BonoRenewal {
   id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
   userId        String
   user          User      @relation(fields: [userId], references: [id])
   cycleLabel    String
@@ -150,25 +238,19 @@ model BonoRenewal {
   createdAt     DateTime  @default(now())
 
   bookings      Booking[]
+
+  @@index([tenantId, userId])
 }
 
 model Notification {
-  id        String              @id @default(cuid())
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
   userId    String
-  user      User                @relation(fields: [userId], references: [id])
-  channel   String              // "APP" | "WHATSAPP"
+  user      User     @relation(fields: [userId], references: [id])
+  channel   String   // "APP" | "WHATSAPP"
   message   String
-  createdAt DateTime            @default(now())
-}
+  createdAt DateTime @default(now())
 
-// Singleton row (id always 1) holding studio-wide settings.
-model AppSettings {
-  id                      Int     @id @default(1)
-  studioName              String  @default("Estudio Reformer")
-  location                String  @default("Enguera (Valencia)")
-  currentCycleLabel       String  @default("Septiembre 2026")
-  nextCycleLabel          String  @default("Octubre 2026")
-  reminderEnabled         Boolean @default(true)
-  reminderChannelApp      Boolean @default(true)
-  reminderChannelWhatsapp Boolean @default(true)
+  @@index([tenantId, createdAt])
 }
