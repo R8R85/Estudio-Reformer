@@ -20,6 +20,8 @@ extended into a sellable multi-tenant SaaS product, per the project's own
 decisions:
 
 - **Platform:** native iOS (SwiftUI) + native Android (Kotlin/Jetpack Compose)
+  + a web app (React) with a public marketing site and a real member/admin
+  dashboard against the same API
 - **Scope:** full stack — real auth, a database, multi-tenant isolation,
   Stripe billing (test mode), and every booking/waitlist/admin rule from the
   original design, working end to end
@@ -31,6 +33,7 @@ decisions:
 backend/    Node.js + TypeScript + Express + Prisma (SQLite) API
 ios/        SwiftUI app (XcodeGen project spec + sources)
 android/    Kotlin + Jetpack Compose app (Gradle project)
+web/        React + Vite marketing site + member/admin web dashboard
 project/    the original Claude Design prototype (HTML/CSS/JS) — kept for reference
 chats/      the design conversation transcripts that shaped the product rules
 ```
@@ -201,6 +204,26 @@ change it (persisted via `AppConfig.baseUrl`) to
 ask for the studio code — see `ui/auth/LoginScreen.kt` and
 `RegisterScreen.kt`.
 
+## Running the web app
+
+Requires Node.js 20+ and the backend running locally (above).
+
+```bash
+cd web
+npm install
+npm run dev              # http://localhost:5173
+```
+
+A public marketing page (`/`) explains every configurable feature and
+plan limit, and `/login` leads into a real dashboard — `/member` or `/admin`
+depending on the account — that calls the live API, built with React +
+Vite + Tailwind, animated with Framer Motion, with a Three.js 3D rendering
+of the logo in the hero. See `web/README.md` for the full page list and how
+to point it at a real domain once the backend has one. Verified end to end
+with Playwright against this repo's own seeded accounts (admin + member
+login, agenda/booking, franjas, billing, and a cross-tenant login failing
+as expected) before being committed.
+
 ## What's not included
 
 Everything below is a deliberate scope cut for *this* build, not a bug — see
@@ -221,3 +244,6 @@ which can be done from inside this environment.
 - App icons / store assets beyond the studio's own logo
   (`project/assets/logo-mark.png`, `project/assets/logo-lockup.png`), copied
   into each app's own resources and used in the UI itself.
+- The web app isn't deployed anywhere public — it runs locally against the
+  local backend. Once both have a real domain, point `web`'s `VITE_API_URL`
+  and `backend`'s `CORS_ORIGIN` at each other (see `web/README.md`).
