@@ -31,23 +31,24 @@ final class AppSession: ObservableObject {
         }
     }
 
-    func register(name: String, email: String, phone: String, password: String,
+    func register(studioCode: String, name: String, email: String, phone: String, password: String,
                   experienciaPrevia: Bool, patologia: Bool, patologiaTexto: String) async throws {
         struct Body: Encodable {
+            let studioCode: String
             let name: String, email: String, phone: String, password: String
             let experienciaPrevia: Bool, patologia: Bool, patologiaTexto: String
         }
         let res: AuthResponse = try await api.request(
             "/auth/register", method: "POST",
-            body: Body(name: name, email: email, phone: phone, password: password,
+            body: Body(studioCode: studioCode, name: name, email: email, phone: phone, password: password,
                        experienciaPrevia: experienciaPrevia, patologia: patologia, patologiaTexto: patologiaTexto)
         )
         persist(res)
     }
 
-    func login(email: String, password: String) async throws {
-        struct Body: Encodable { let email: String; let password: String }
-        let res: AuthResponse = try await api.request("/auth/login", method: "POST", body: Body(email: email, password: password))
+    func login(studioCode: String, email: String, password: String) async throws {
+        struct Body: Encodable { let studioCode: String; let email: String; let password: String }
+        let res: AuthResponse = try await api.request("/auth/login", method: "POST", body: Body(studioCode: studioCode, email: email, password: password))
         persist(res)
     }
 

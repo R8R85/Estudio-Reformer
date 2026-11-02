@@ -24,10 +24,11 @@ data class AuthResponse(val token: String, val user: PublicUser)
 data class MeResponse(val user: PublicUser)
 
 data class RegisterBody(
+    val studioCode: String,
     val name: String, val email: String, val phone: String, val password: String,
     val experienciaPrevia: Boolean, val patologia: Boolean, val patologiaTexto: String,
 )
-data class LoginBody(val email: String, val password: String)
+data class LoginBody(val studioCode: String, val email: String, val password: String)
 
 // ── Member · Agenda ─────────────────────────────────────────────────────────
 

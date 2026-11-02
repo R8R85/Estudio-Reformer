@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 fun LoginScreen() {
     val session = LocalSession.current
     val scope = rememberCoroutineScope()
+    var studioCode by remember { mutableStateOf(session.lastStudioCode()) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -36,6 +37,8 @@ fun LoginScreen() {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
     ) {
+        LabeledField(label = "Código de estudio", value = studioCode, onValueChange = { studioCode = it.uppercase() }, placeholder = "ENGUERA")
+        Spacer(Modifier.height(14.dp))
         LabeledField(label = "Email", value = email, onValueChange = { email = it }, placeholder = "alba@correo.com", keyboardType = KeyboardType.Email)
         Spacer(Modifier.height(14.dp))
         LabeledField(label = "Contraseña", value = password, onValueChange = { password = it }, placeholder = "••••••••", isPassword = true)
@@ -53,7 +56,7 @@ fun LoginScreen() {
                 error = null
                 scope.launch {
                     try {
-                        session.login(email, password)
+                        session.login(studioCode.trim(), email, password)
                     } catch (e: ApiException) {
                         error = e.message
                     } catch (e: Exception) {
@@ -65,13 +68,13 @@ fun LoginScreen() {
             },
             kind = ButtonKind.Primary,
             block = true,
-            enabled = email.isNotEmpty() && password.isNotEmpty(),
+            enabled = studioCode.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty(),
             loading = isSubmitting,
         )
 
         Spacer(Modifier.height(14.dp))
         Text(
-            "Cuentas de prueba: admin@estudioreformer.es / admin123 · lucia.ferrer@correo.com / socia123",
+            "Cuentas de prueba: ENGUERA · admin@estudioreformer.es / admin123 · lucia.ferrer@correo.com / socia123",
             fontSize = 11.sp, color = Theme.neutral600,
         )
     }

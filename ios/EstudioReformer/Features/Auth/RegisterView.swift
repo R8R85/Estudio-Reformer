@@ -6,6 +6,7 @@ import SwiftUI
 struct RegisterView: View {
     @EnvironmentObject var session: AppSession
 
+    @State private var studioCode = UserDefaults.standard.string(forKey: "last_studio_code") ?? ""
     @State private var nombre = ""
     @State private var email = ""
     @State private var tel = ""
@@ -17,7 +18,7 @@ struct RegisterView: View {
     @State private var error: String?
 
     private var incompleto: Bool {
-        nombre.isEmpty || email.isEmpty || tel.isEmpty || password.count < 6
+        studioCode.isEmpty || nombre.isEmpty || email.isEmpty || tel.isEmpty || password.count < 6
     }
 
     var body: some View {
@@ -28,6 +29,12 @@ struct RegisterView: View {
                 .font(.system(size: 12.5))
                 .foregroundStyle(Theme.neutral500)
 
+            LabeledField(label: "Código de estudio", note: "Te lo da el estudio al que te apuntas.") {
+                TextField("ENGUERA", text: $studioCode)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .foregroundStyle(Theme.text)
+            }
             LabeledField(label: "Nombre y apellidos") {
                 TextField("Alba Marí", text: $nombre).foregroundStyle(Theme.text)
             }
@@ -88,14 +95,16 @@ struct RegisterView: View {
     private func submit() {
         isSubmitting = true
         error = nil
+        let code = studioCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         Task {
             defer { isSubmitting = false }
             do {
                 try await session.register(
-                    name: nombre, email: email, phone: tel, password: password,
+                    studioCode: code, name: nombre, email: email, phone: tel, password: password,
                     experienciaPrevia: experienciaPrevia, patologia: patologia,
                     patologiaTexto: patologiaTexto
                 )
+                UserDefaults.standard.set(code, forKey: "last_studio_code")
             } catch {
                 self.error = error.localizedDescription
             }

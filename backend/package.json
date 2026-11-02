@@ -1,8 +1,8 @@
 {
-  "name": "estudio-reformer-backend",
+  "name": "nexoestudio-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "API for Estudio Reformer — agenda, bonos and admin for a pilates reformer studio.",
+  "description": "NEXOESTUDIO API — multi-tenant agenda, bonos and admin backend for pilates reformer studios.",
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -23,6 +23,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "stripe": "^16.9.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

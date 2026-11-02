@@ -17,6 +17,9 @@ export function validateBody<T extends z.ZodTypeAny>(schema: T) {
 }
 
 export const registerSchema = z.object({
+  // "Código de estudio": which tenant this account joins. One shared app/API
+  // serves every studio, so sign-up has to say which one.
+  studioCode: z.string().trim().min(1, 'Falta el código del estudio').toUpperCase(),
   name: z.string().trim().min(2, 'El nombre es obligatorio'),
   email: z.string().trim().toLowerCase().email('Email inválido'),
   phone: z.string().trim().min(6, 'Teléfono inválido'),
@@ -27,6 +30,7 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
+  studioCode: z.string().trim().min(1, 'Falta el código del estudio').toUpperCase(),
   email: z.string().trim().toLowerCase().email('Email inválido'),
   password: z.string().min(1, 'Falta la contraseña'),
 });
@@ -45,4 +49,29 @@ export const reminderSettingsSchema = z.object({
   reminderEnabled: z.boolean().optional(),
   reminderChannelApp: z.boolean().optional(),
   reminderChannelWhatsapp: z.boolean().optional(),
+});
+
+export const platformLoginSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Email inválido'),
+  password: z.string().min(1, 'Falta la contraseña'),
+});
+
+export const tenantCreateSchema = z.object({
+  code: z.string().trim().min(2, 'El código es obligatorio').toUpperCase(),
+  name: z.string().trim().min(2, 'El nombre es obligatorio'),
+  location: z.string().trim().optional().default(''),
+  plan: z.enum(['TRIAL', 'SOLO', 'ESTUDIO', 'CADENA']).optional().default('TRIAL'),
+  adminName: z.string().trim().min(2, 'El nombre del administrador es obligatorio'),
+  adminEmail: z.string().trim().toLowerCase().email('Email de administrador inválido'),
+  adminPhone: z.string().trim().min(6, 'Teléfono inválido'),
+  adminPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+});
+
+export const tenantPatchSchema = z.object({
+  name: z.string().trim().min(2).optional(),
+  location: z.string().trim().optional(),
+  plan: z.enum(['TRIAL', 'SOLO', 'ESTUDIO', 'CADENA']).optional(),
+  planMemberLimit: z.number().int().min(1).optional(),
+  planWhatsappEnabled: z.boolean().optional(),
+  planMultiSede: z.boolean().optional(),
 });

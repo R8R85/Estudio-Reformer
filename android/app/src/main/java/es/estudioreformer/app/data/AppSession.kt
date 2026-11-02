@@ -42,17 +42,21 @@ class AppSession(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun register(
-        name: String, email: String, phone: String, password: String,
+        studioCode: String, name: String, email: String, phone: String, password: String,
         experienciaPrevia: Boolean, patologia: Boolean, patologiaTexto: String,
     ) {
-        val res = api.register(RegisterBody(name, email, phone, password, experienciaPrevia, patologia, patologiaTexto))
+        val res = api.register(RegisterBody(studioCode, name, email, phone, password, experienciaPrevia, patologia, patologiaTexto))
         persist(res.token, res.user)
+        prefs.edit().putString("last_studio_code", studioCode).apply()
     }
 
-    suspend fun login(email: String, password: String) {
-        val res = api.login(LoginBody(email, password))
+    suspend fun login(studioCode: String, email: String, password: String) {
+        val res = api.login(LoginBody(studioCode, email, password))
         persist(res.token, res.user)
+        prefs.edit().putString("last_studio_code", studioCode).apply()
     }
+
+    fun lastStudioCode(): String = prefs.getString("last_studio_code", "") ?: ""
 
     suspend fun refreshMe() {
         if (api.token == null) return
